@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  	<!-- Include meta tag to ensure proper rendering and touch zooming -->
+  	<meta name="viewport" content="width=device-width, initial-scale=1">
+  	<!-- Include table stylesheet -->
+	<link rel="stylesheet" href="table.css">
+	<!-- Include jQuery Mobile stylesheets -->
+	<link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css"> -->
+  	<!-- Include the jQuery library -->
+  	<script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
+  	<!-- Include the jQuery Mobile library -->
+  	<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+  	<!-- Include the ajax library -->
+  	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  	
+  	<script>
+  	function searchChangeHandler()
+  	{
+  		if (($("#fieldname").prop("selectedIndex") > 0 )&&($("#searchtext").val() != ''))
+  		{
+  			$.getJSON ("http://at-web2.comp.glam.ac.uk/students/10016600/jtest/search.php?tablename=" 
+  				+ $("#tablelist").val() + "&fieldname=" + $("#fieldname").val() + "&celldata=" + $("#searchtext").val(),
+			function(jsondata){
+				console.log(jsondata);
+				var fieldindex;
+			
+				if ( jsondata.rows > 0 )
+				{	
+					// OUTPUT TABLE HEADERS
+					var html = '<table id="myTable"><thead><tr>';
+					//<th>Row</th>';
+					for ( i = 0; i < jsondata.columns; i++ ){
+						html += "<th>" + jsondata.headings [ i ] + "</th>";
+					
+						// Ascertain which index is the field being searching
+						if (jsondata.headings [ i ] == $("#fieldname").val()){
+							fieldindex = i;
+						}
+					}
+					// OUTPUT TABLE BODY
+					html += "</tr></thead><tbody>"; 
+					for ( row = 0; row < jsondata.rows; row++ ){
+						html += "<tr>";
+						var htmlrow = '';
+						var isInSearch = false;
+						for ( column = 0; column < jsondata.columns; column++ )
+						{
+							htmlrow += "<td>" + jsondata.data [ row ] [ column ] + "</td>";
+							// Exclude rows that are not in desired search
+							if ((column == fieldindex)&&(jsondata.data [ row ] [ column ] == $("#searchtext").val())){
+								isInSearch = true;
+							}
+						}
+						if (!isInSearch){ // Wipe if row isn't in search
+							htmlrow = '';
+							$("#tablearea").html(html);
+						}   	
+						html += htmlrow;
+						html += "</tr>";
+					}
+					html += "</tbody></table>";
+					$("#tablearea").html(html);
+					html = '';
+					$("#searchoutput").html(html);
+				}
+				else
+				{
+					html = '<p>No search results found...</p>';
+					$("#tablearea").html(html);
+				}
+			});	
+		}
+		else
+		{
+			html = '<p>Please fill both fields..</p>';
+			$("#searchoutput").html(html);
+			html = '';
+			$("#tableoutput").html(html);
+	 		
+		}
+		$("#myTable tr td").each(function() 
+		{
+            var cell = $.trim($(this).text());
+            if (cell.length == 0) {
+                $(this).parent().hide();
+            }
+        });
+
+  	}
+  	
+	function search(jsondata) 
+	{
+		var html = '<br><br>';	
+		html += '<label for="search"><b>Search Entry</b></label>';
+		html += '<select id="fieldname" name="fieldname">';
+        html += '<option value="none">Select a field</option>';
+		
+		$.each(jsondata.headings, function(i, jsondata){
+       		html += '<option value="' + jsondata +'">' + jsondata + '</option>';    			
+    	});
+	
+		html += "</select>";
+    	html += '<br><br>';
+		html += '<input id="searchtext" name="searchtext" placeholder="Search text..." />';
+		html += '<br><br>';	
+		
+    	$("#searcharea").html(html);
+    	
+    	$("#fieldname").change(function() {
+    			searchChangeHandler();
+		});
+    	$("#searchtext").keydown(function() {
+    			searchChangeHandler();
+		});	
+		$("#searchtext").keyup(function() {
+    			searchChangeHandler();
+		});	
+	}
+	
+	function insert(jsondata)
+	{
+		var html =  '<label for="insert"><b>Insert Entry</b></label>';
+		html += '<form id="insertform" action="" method="post">';
+		
+		// Construct form from jsondata.
+		$.each(jsondata.headings, function(i, jsondata){
+			html += '<input class="searchinputbox" type="text" name="field'+ i +'" placeholder='+jsondata+'><br><br>';	
+    	});
+    
+ 	 	html += '<input id="submit" type="button" name="submit" value="submit">';
+		html += '</form>';
+		$("#insertarea").html(html);	
+		
+		$("#submit").on('click', function(){
+			var isEmpty;
+				
+			//CONSTRUCT INFORMATION TO POST TO INSERT.PHP
+			var arr = {};
+			var len = $("form#insertform :input[type=text]").length;
+			arr['tablename'] = $("#tablelist").val();
+				$("form#insertform :input[type=text]").each(function(index, element){
+					var input = $(this); // This is the jquery object of the input.
+					arr[jsondata.headings[index]] = input.val();
+					if (input.val() == '')
+					{
+						isEmpty = true;
+					}
+				});
+				
+			if (!isEmpty) 
+				{
+				$.ajax({
+					url: 'insert.php', // url where to submit the request
+					type : "POST", // type of action POST || GET
+					data : arr,
+					dataType : 'text', // data type
+					success : function(result) {
+						console.log(result);
+					},
+					error: function(xhr, resp, text) {
+						console.log(xhr, resp, text);
+					}
+				});
+				alert('Entry submitted!');
+				listChangeHandler();
+			}
+			else{
+				alert('Please fill in all fields!');
+			}
+    	});     
+	}
+	
+	function listChangeHandler() 
+	{
+		if ($("#tablelist").prop("selectedIndex") > 0 ){    
+		  	$.getJSON ("http://at-web2.comp.glam.ac.uk/students/10016600/jtest/tabledata.php?tablename=" + $("#tablelist").val(),
+		    function(jsondata) {
+				if ( jsondata.rows > 0 )
+				{	
+				  	var html = '<table id="myTable"><thead><tr>';
+		          	for ( i = 0; i < jsondata.columns; i++ )
+		            html += "<th>" + jsondata.headings [ i ] + "</th>";
+    	         	html += "</tr></thead><tbody>";
+				  
+				 	for ( row = 0; row < jsondata.rows; row++ )
+				  	{
+					 	html += "<tr>";
+    	              	for ( column = 0; column < jsondata.columns; column++ )
+    	                html += "<td>" + jsondata.data [ row ] [ column ] + "</td>";
+    	             	html += "</tr>";
+    	          	}
+              		html += "</tbody></table>";
+			  		$("#tablearea").html(html);
+			  		$("#pager").show();
+			  		
+			  		var headArr = jsondata.headings; 
+					search(jsondata); 
+					insert(jsondata);
+				}
+				else{
+				  	$("#tablearea").html(JSONstring.make(jsondata));
+				}
+          	}//function
+      		);
+		}
+	}//changeHandler
+
+	function setupTableNamesList()
+	{
+		
+    	$.getJSON("http://at-web2.comp.glam.ac.uk/students/10016600/jtest/tablenames.php", 
+    	function(result)
+    	{
+        	var html = '<select id="tablelist" name="tablelist">';
+       		html += '<option value="none">Select a table</option>';
+    	   	$.each(result.names, function(i, result){
+       			html += '<option value="' + result +'">' + result + '</option>';    			
+    	   	});
+	    	html += '</select>';
+	    	html += '         <button id="refresh" type="button">Refresh</button>';
+    	    html += '<br><br>';
+    	    $("#tableselect").html(html);
+    	    var json = result;
+    	    $("#tablelist").change(listChangeHandler);
+    	    
+    	   	$("#refresh").on('click', function(){
+    	    	listChangeHandler();
+    		});
+		});
+	}//setupTableNamesList
+
+	$(document).ready(function()
+	{
+  		setupTableNamesList();  		
+  	});
+  	
+</script>
+</head>
+<body>
+
+<div data-role="page" id="pageone">
+	<div data-role="header">
+   		<h1>Table Selection Site</h1>
+ 	</div>
+  	<div data-role="main" class="ui-content">
+    	<p>This site allows you to view and edit various databases.</p>
+    	<br>
+    	<b>Table Selection</b>
+    	<p>Please select a table to view.</p>
+    	<div id="tableselect"></div>
+		<div id="tablearea"></div>
+		<div id="searcharea"></div>
+		<div id="searchoutput"></div>
+		<div id="searchoutputfooter"></div>
+		<div id="insertarea"></div>
+		<div id="insertoutput"></div>
+		<div id="test"></div>
+  		</div> <div data-role="footer">
+    	<h1>Jack Holmes - 10016600</h1>
+  	</div>
+</div> 
+
+</body>
+</html>
